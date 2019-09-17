@@ -47,72 +47,72 @@
 -include_lib("eunit/include/eunit.hrl").
 -compile(export_all).
 -else.
--export([send/2, send/3, send_blocking/2, open/1, deliver/2, close/1]).
+-export([send/2, send/3, send_blocking/2, open/1, deliver/2, close/1, connect/2, try_EHLO/2, try_HELO/2, try_MAIL_FROM/4, try_RCPT_TO/4]).
 -endif.
 
 
 -export_type([smtp_client_socket/0,
-              email/0,
-              email_address/0,
-              options/0,
-              callback/0,
-              smtp_session_error/0,
-              host_failure/0,
-              failure/0,
-              validate_options_error/0]).
+			  email/0,
+			  email_address/0,
+			  options/0,
+			  callback/0,
+			  smtp_session_error/0,
+			  host_failure/0,
+			  failure/0,
+			  validate_options_error/0]).
 
 -type email_address() :: string() | binary().
 -type email() :: {From :: email_address(),
-                  To :: [email_address(), ...],
-                  Body :: string() | binary() | fun( () -> string() | binary() )}.
+				  To :: [email_address(), ...],
+				  Body :: string() | binary() | fun( () -> string() | binary() )}.
 
 -type options() :: [{ssl, boolean()} |
-                    {tls, always | never | if_available} |
-                    {tls_options, list()} | % ssl:option() / ssl:tls_client_option()
-                    {sockopts, [gen_tcp:connect_option()]} |
-                    {port, inet:port_number()} |
-                    {timeout, timeout()} |
-                    {relay, inet:ip_address() | inet:hostname()} |
-                    {no_mx_lookups, boolean()} |
-                    {auth, always | never | if_available} |
-                    {hostname, string()} |
-                    {retries, non_neg_integer()} |
-                    {username, string()} |
-                    {password, string()} |
-                    {trace_fun, fun( (Fmt :: string(), Args :: [any()]) -> any() )}].
+					{tls, always | never | if_available} |
+					{tls_options, list()} | % ssl:option() / ssl:tls_client_option()
+					{sockopts, [gen_tcp:connect_option()]} |
+					{port, inet:port_number()} |
+					{timeout, timeout()} |
+					{relay, inet:ip_address() | inet:hostname()} |
+					{no_mx_lookups, boolean()} |
+					{auth, always | never | if_available} |
+					{hostname, string()} |
+					{retries, non_neg_integer()} |
+					{username, string()} |
+					{password, string()} |
+					{trace_fun, fun( (Fmt :: string(), Args :: [any()]) -> any() )}].
 
 -type extensions() :: [{binary(), binary()}].
 
 -opaque smtp_client_socket() :: {smtp_socket:socket(), extensions(), options()}.
 
 -type callback() :: fun( ({exit, any()} |
-                          smtp_session_error() |
-                          {ok, binary()}) -> any() ).
+						  smtp_session_error() |
+						  {ok, binary()}) -> any() ).
 
 %% Smth that is thrown from inner SMTP functions
 -type permanent_failure_reason() :: binary() |  % server's 5xx response
-                                    auth_failed |
-                                    ssl_not_started.
+									auth_failed |
+									ssl_not_started.
 -type temporary_failure_reason() :: binary() |  %server's 4xx response
-                                    tls_failed.
+									tls_failed.
 -type validate_options_error() :: no_relay |
-                                  invalid_port |
-                                  no_credentials.
+								  invalid_port |
+								  no_credentials.
 -type failure() :: {temporary_failure, temporary_failure_reason()} |
-                   {permanent_failure, permanent_failure_reason()} |
-                   {missing_requirement, auth | tls} |
-                   {unexpected_response, [binary()]} |
-                   {network_failure, {error, timeout | inet:posix()}}.
+				   {permanent_failure, permanent_failure_reason()} |
+				   {missing_requirement, auth | tls} |
+				   {unexpected_response, [binary()]} |
+				   {network_failure, {error, timeout | inet:posix()}}.
 -type smtp_host() :: inet:hostname().
 -type host_failure() ::
-        {temporary_failure, smtp_host(), temporary_failure_reason()} |
-        {permanent_failure, smtp_host(), permanent_failure_reason()} |
-        {missing_requirement, smtp_host(), auth | tls} |
-        {unexpected_response, smtp_host(), [binary()]} |
-        {network_failure, smtp_host(), {error, timeout | inet:posix()}}.
+		{temporary_failure, smtp_host(), temporary_failure_reason()} |
+		{permanent_failure, smtp_host(), permanent_failure_reason()} |
+		{missing_requirement, smtp_host(), auth | tls} |
+		{unexpected_response, smtp_host(), [binary()]} |
+		{network_failure, smtp_host(), {error, timeout | inet:posix()}}.
 -type smtp_session_error() ::
-        {error, no_more_hosts, {permanent_failure, smtp_host(), permanent_failure_reason()}} |
-        {error, retries_exceeded, host_failure()}.
+		{error, no_more_hosts, {permanent_failure, smtp_host(), permanent_failure_reason()}} |
+		{error, retries_exceeded, host_failure()}.
 
 
 -spec send(Email :: email(), Options :: options()) -> {'ok', pid()} | {'error', validate_options_error()}.
@@ -157,9 +157,9 @@ send(Email, Options, Callback) ->
 	end.
 
 -spec send_blocking(Email :: email(), Options :: options()) ->
-                           binary() |
-                           smtp_session_error() |
-                           {error, validate_options_error()}.
+						   binary() |
+						   smtp_session_error() |
+						   {error, validate_options_error()}.
 %% @doc Send an email and block waiting for the reply. Returns either a binary that contains
 %% the SMTP server's receipt or `{error, Type, Message}' or `{error, Reason}'.
 send_blocking(Email, Options) ->
@@ -173,8 +173,8 @@ send_blocking(Email, Options) ->
 	end.
 
 -spec send_it_nonblock(Email :: email(), Options :: options(), Callback :: callback() | 'undefined') ->
-                              {'ok', binary()} |
-                              smtp_session_error().
+							  {'ok', binary()} |
+							  smtp_session_error().
 send_it_nonblock(Email, Options, Callback) ->
 	case send_it(Email, Options) of
 		{error, Type, Message} when is_function(Callback) ->
@@ -190,9 +190,9 @@ send_it_nonblock(Email, Options, Callback) ->
 	end.
 
 -spec open(Options :: options()) ->
-                  {ok, SocketDescriptor :: smtp_client_socket()} |
-                  smtp_session_error() |
-                  {error, bad_option, validate_options_error()}.
+				  {ok, SocketDescriptor :: smtp_client_socket()} |
+				  smtp_session_error() |
+				  {error, bad_option, validate_options_error()}.
 %% @doc Open a SMTP client socket with the provided options
 %% Once the socket has been opened, you can use it with deliver/2.
 open(Options) ->
@@ -239,7 +239,7 @@ close({Socket, _Extensions, _Options}) ->
 	quit(Socket).
 
 -spec send_it(Email :: email(), Options :: options()) -> binary() |
-                                                         smtp_session_error().
+														 smtp_session_error().
 send_it(Email, Options) ->
 	RelayDomain = to_string(proplists:get_value(relay, Options)),
 	MXRecords = case proplists:get_value(no_mx_lookups, Options) of
@@ -265,8 +265,8 @@ send_it(Email, Options) ->
 	end.
 
 -spec try_smtp_sessions(Hosts :: [{non_neg_integer(), string()}, ...], Options :: options(), RetryList :: list()) ->
-                               smtp_client_socket() |
-                               smtp_session_error().
+							   smtp_client_socket() |
+							   smtp_session_error().
 try_smtp_sessions([{_Distance, Host} | _Tail] = Hosts, Options, RetryList) ->
 	try open_smtp_session(Host, Options) of
 		Res -> Res
@@ -276,8 +276,8 @@ try_smtp_sessions([{_Distance, Host} | _Tail] = Hosts, Options, RetryList) ->
 	end.
 
 -spec handle_smtp_throw(failure(), [{non_neg_integer(), smtp_host()}], options(), list()) ->
-                               smtp_client_socket() |
-                               smtp_session_error().
+							   smtp_client_socket() |
+							   smtp_session_error().
 handle_smtp_throw({permanent_failure, Message}, [{_Distance, Host} | _Tail], _Options, _RetryList) ->
 	% permanent failure means no retries, and don't even continue with other hosts
 	{error, no_more_hosts, {permanent_failure, Host, Message}};
